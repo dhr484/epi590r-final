@@ -1,0 +1,6 @@
+EPI590R Final Project 
+Daniel Herrera 
+
+The "epi590rfinalscript.R" script and the "fapabstract.qmd" Quarto document work independently. 
+
+Of note, the data is part of the medicaldata package found in https://github.com/higgi13425/medicaldata/tree/master/data, "polyps" data set.

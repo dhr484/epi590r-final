@@ -18,7 +18,7 @@ fap <- read_rds (here::here("data", "fapraw.rds"))
 # Removing observations with missing data
 fapnona <- na.omit(fap)
 
-# Creating data clean folder and saving the working dataset  
+# Creating data clean folder and saving the dataset without missing data  
 if (!dir.exists(here::here("data", "clean"))) {
   dir.create(here::here("data", "clean"))
 }
@@ -99,3 +99,30 @@ figure1 <- ggplot(fap_long_clean, aes(x = factor(time_point,
   scale_fill_manual(values = c("sulindac" = "#FF7F50", "placebo" = "lightblue")) +
   theme_gray()
 figure1
+
+# Saving the figure on the project folder under a "figures" folder 
+# Create the figures directory if it doesn't exist
+if (!dir.exists(here::here("figures"))) {
+  dir.create(here::here("figures"))
+}
+
+# Saving the plot
+ggsave(filename = here::here("figures", "polyps_comparison.png"), 
+       plot = figure1, 
+       width = 8, height = 6, dpi = 600)
+
+# Creating a function and using it with the data 
+sdmanual <- function(data, variable) {
+  var_data <- data[[variable]]
+  if (!is.numeric(var_data)) {
+    stop("Error! The specified variable is not continuous (numeric).")
+  }
+  var_data <- var_data[!is.na(var_data)]
+  mean_value <- mean(var_data)
+  squared_deviations <- sum((var_data - mean_value) ^ 2)
+  sd_value <- sqrt(squared_deviations / (length(var_data) - 1))
+  return(sd_value)
+}
+
+# Testing the new function
+sdmanual(fap, "age")

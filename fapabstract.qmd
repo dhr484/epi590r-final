@@ -1,0 +1,135 @@
+---
+title: "Treatment of colonic and rectal adenomas with sulindac in familial adenomatous polyposis"
+author: "Daniel Herrera"
+format: 
+ html:
+  theme: spacelab
+execute: 
+  echo: false
+---
+
+## Data source
+
+This data set is from a study published in 1993 in the New England Journal of Medicine: F. M. Giardiello, S. R. Hamilton, A. J. Krush, S. Piantadosi, L. M. Hylind, P. Celano, S. V. Booker, C. R. Robinson and G. J. A. Offerhaus (1993), Treatment of colonic and rectal adenomas with sulindac in familial adenomatous polyposis. New England Journal of Medicine, 328(18), 1313–1316.
+
+It is part of the medicaldata package <https://github.com/higgi13425/medicaldata/tree/master/data>, "polyps" data set.
+
+## **Background**
+
+Familial adenomatous polyposis (FAP) is an inherited condition caused by mutations in the APC (Adenomatous Polyposis Coli) gene that leads to early and frequent formation of precancerous polyps of the colon at a young age, and invariably leads to the development of colon cancer at a young age. Early, frequent surveillance colonoscopy and polyp removal is helpful, but this study examined whether there is a beneficial effect of preventive medical therapy with the nonsteroidal pain reliever, sulindac, versus placebo in a RCT vs placebo in 22 participants, with polyp number measured (via colonoscopy) at baseline, 3 months, and 12 months after starting the study drug.
+
+## **Study Design**
+
+Prospective randomized controlled trial of sulindac vs. placebo in the prevention of colonic polyps in FAP.
+
+### **Subjects & Variables**
+
+22 participants were assigned to 1 of 2 treatments, sulindac or placebo. The initial sample consisted of 22 people with known FAP. n = 22 subjects (2 dropped out between month 3 and 12)
+
+7 variables: participant_id, sex, age, baseline (number of polyps at baseline visit), treatment (sulindac or placebo), number3m (number of polyps at 3 months), and number6m (number of polyps at 6 months).
+
+```{r}
+# Package loading 
+library(pacman)
+p_load(ggplot2, gtsummary, here, janitor, medicaldata, naniar, tidyverse)
+
+# Calling the stored data for analysis
+fap <- read_rds (here::here("data", "fapraw.rds"))
+```
+
+## **Results**
+As shown in @tbl-one, twenty-two patients were randomly assigned to treatment groups. Eleven patients received sulindac, and 11 placebo. There were no significant differences in demographic characteristics between the treatment groups. The participant's mean age was `r round(mean(fap$age, na.rm = TRUE), 2)` years. Two patients were withdrawn from the study, but their data were analyzed by the intention-to-treat strategy.
+
+```{r}
+#| warning: false
+#| label: tbl-one
+#| tbl-cap: Demographic Characteristics of the Study Patients, According to Treatment Group 
+# Creating the descriptive statistics table including the overall number of
+# observations, t and chi square tests and additional statistics where 
+# applicable. "fap" data set was used to report two missing observations  
+table1 <- tbl_summary(fap, 
+            by = treatment,
+            include = c(sex, age, baseline, number3m, number12m),
+            label = list(
+              sex ~ "Sex",
+              age ~ "Age (yr)",
+              baseline ~ "Base-line no. of polyps", 
+              number3m ~ "No. of polyps at 3 months",
+              number12m ~ "No. of polyps at 12 months"
+            ),
+            missing_text = "Missing", 
+            statistic = list(
+              sex ~ "{n} ({p})",
+              age ~ "{mean} ({sd})",
+              baseline ~ "{median} ({min}, {max})",
+              number3m ~ "{median} ({min}, {max})",
+              number12m ~ "{median} ({min}, {max})"
+            ), 
+            digits = everything() ~ style_sigfig 
+            ) |>
+  add_p(test = list(
+    all_continuous() ~ "t.test",
+    all_categorical() ~ "chisq.test"
+  )) |> 
+  add_overall(col_label = "**Total** N = {N}") |> 
+  bold_labels() |> 
+  modify_header(label = "**Variable**", p.value = "***p***") 
+  table1
+```
+
+The number of polyps at baseline was not significantly different between the treatment groups (@tbl-one). The number of polyps was decreased in the group given sulindac at 3 and 12 months (@fig-one), but only reached statistical significance at 12 months (@tbl-one) (Welch two-sample t-test, `r inline_text(table1, variable = number12m, column = "p.value")`).
+
+```{r}
+#| warning: false
+#| label: fig-one
+#| fig-cap: Box Plot Assessing the Number of Polyps at Baseline, 3 Months, and 12 Months Per Treatment Group
+# Creating a box plot to compare the number of polyps at baseline, 3 months, and 12 months 
+fap_long <- fap |> 
+  pivot_longer(cols = c(baseline, number3m, number12m),
+               names_to = "time_point",
+               values_to = "num_polyps")
+
+# Filtering the rows with missing values in num_polyps
+fap_long_clean <- fap_long  |> 
+  filter(!is.na(num_polyps))
+
+# Creating the box plot
+figure1 <- ggplot(fap_long_clean, aes(x = factor(time_point, 
+                                      levels = c("baseline", 
+                                                 "number3m", 
+                                                 "number12m"),
+                                      labels = c("Baseline", 
+                                                 "3 months", 
+                                                 "12 months")),
+                           y = num_polyps, fill = treatment)) +
+  geom_boxplot() +
+  labs(title = "Comparison of Number of Polyps by Treatment Group",
+       x = "Time Point",
+       y = "Number of Polyps",
+       fill = "Treatment Group") +
+  scale_fill_discrete(labels = c("sulindac" = "Sulindac", 
+                                 "placebo" = "Placebo")) +
+  scale_fill_manual(values = c("sulindac" = "#FF7F50", "placebo" = "lightblue")) +
+  theme_gray()
+figure1
+```
+
+A multiple linear regression analysis was conducted to adjust for differences between treatment groups in age and sex and determine whether these differences in demographic characteristics impacted on prognostic features such as the baseline number of polyps. @tbl-two shows, at the 5% significance level, no statistically significant association of these variables with the number of polyps at baseline.  
+
+```{r}
+#| label: tbl-two
+#| tbl-cap: Multiple Linear Regression Analysis for the Number of Polyps at Baseline
+# Creating a multiple linear regression model to evaluate the relationship
+# between the number of polyps at baseline and the sex and age variables 
+mlr <- lm(baseline ~ age + sex, data = fap)
+regression1 <- tbl_regression(mlr,
+                              intercept = FALSE,
+                              label = list(sex ~ "Sex",
+                                           age ~ "Age (yr)"
+                                           )
+                              )
+regression1
+```
+
+## **Discussion**
+In this study, sulindac effectively reduced the size and number of colonic and rectal polyps in patients with familial adenomatous polyposis (@fig-one). Long-term clinical studies of sulindac therapy are needed in patients with familial adenomatous polyposis who have had subtotal colectomy and ileorectal anastomosis to evaluate its efficacy in reducing the occurrence of rectal cancer.
